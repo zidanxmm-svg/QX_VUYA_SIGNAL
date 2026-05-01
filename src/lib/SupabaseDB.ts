@@ -9,15 +9,26 @@ export class SupabaseDB {
     console.log("[SupabaseDB] Run:", sql, params);
 
     try {
-      if (sql.trim().toUpperCase().startsWith("INSERT") && sql.includes("settings")) {
-          // INSERT INTO settings (id, data) VALUES (?, ?)
+      if (sql.includes("INSERT OR REPLACE INTO candles")) {
+          const [symbol, timestamp, open, high, low, close, volume] = params;
+          const { error } = await supabase.from('candles').upsert({ symbol, timestamp, open, high, low, close, volume });
+          if (error) throw error;
+      } else if (sql.includes("DELETE FROM candles")) {
+          const { error } = await supabase.from('candles').delete().lt('timestamp', params[0]);
+          if (error) throw error;
+      } else if (sql.includes("DELETE FROM signals")) {
+          const { error } = await supabase.from('signals').delete().lt('entryTime', params[0]);
+          if (error) throw error;
+      } else if (sql.includes("INSERT INTO signals")) {
+           const [id, symbol, direction, entryTime, expiryTime, strategy, confidence] = params;
+           const { error } = await supabase.from('signals').insert({ id, symbol, direction, entryTime, expiryTime, strategy, confidence });
+           if (error) throw error;
+      } else if (sql.trim().toUpperCase().startsWith("INSERT") && sql.includes("settings")) {
           let id, dataToUpsert;
           if (params.length === 1) {
-            // INSERT INTO settings (id, data) VALUES ('global', ?)
             id = 'global';
             dataToUpsert = params[0];
           } else {
-            // INSERT INTO settings (id, data) VALUES (?, ?)
             id = params[0];
             dataToUpsert = params[1];
           }
@@ -50,6 +61,7 @@ export class SupabaseDB {
       }
       if (callback) callback(null);
     } catch (err: any) {
+      console.error("[SupabaseDB] Run error:", err);
       if (callback) callback(err);
     }
   }
@@ -80,7 +92,21 @@ export class SupabaseDB {
     console.log("[SupabaseDB] All:", sql, params);
     if (!callback) return;
     
-    // Minimal implementation for now
-    callback(null, []);
+    try {
+        if (sql.includes("FROM candles WHERE symbol = ?")) {
+            const { data, error } = await supabase.from('candles').select('*').eq('symbol', params[0]).order('timestamp', { ascending: false }).limit(params[1]);
+            if (error) throw error;
+            callback(null, data);
+        } else if (sql.includes("FROM signals")) {
+            const { data, error } = await supabase.from('signals').select('*').order('entryTime', { ascending: false }).limit(params[0] || 100);
+            if (error) throw error;
+            callback(null, data);
+        } else {
+            callback(null, []);
+        }
+    } catch (err) {
+        console.error("[SupabaseDB] All error:", err);
+        callback(err, []);
+    }
   }
 }

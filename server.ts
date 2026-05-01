@@ -75,9 +75,17 @@ async function startServer() {
     )`);
 
     // Pre-populate settings if empty
-    db.get(`SELECT COUNT(*) as count FROM settings WHERE id = 'global'`, (err, row: any) => {
-      if (err || row.count === 0 || (row.count > 0 && typeof row.data === 'string' && row.data.includes("error"))) {
-        console.log("[INIT] Resetting settings to default due to invalid data");
+    db.get(`SELECT * FROM settings WHERE id = 'global'`, (err, row: any) => {
+      let needsReset = false;
+      if (err || !row) {
+        needsReset = true;
+      } else if (row.data && typeof row.data === 'string' && row.data.includes("error")) {
+        console.log("[INIT] Found invalid data in settings. Resetting.");
+        needsReset = true;
+      }
+      
+      if (needsReset) {
+        console.log("[INIT] Initializing or resetting settings to default");
         const defaultSettings = {
           isSystemOn: false,
           isAIOn: true,
