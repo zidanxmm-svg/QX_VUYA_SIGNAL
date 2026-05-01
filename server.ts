@@ -19,6 +19,7 @@ async function startServer() {
   app.use(cors());
   app.use(express.json());
 
+  console.log("Starting server...");
   // Database Setup
   const db = new SupabaseDB();
   
@@ -231,10 +232,10 @@ async function startServer() {
   // Telegram Bot Manager
   class TelegramManager {
     private bot: TelegramBot | null = null;
-    private db: sqlite3.Database;
+    private db: SupabaseDB;
     private userStates: Record<string, string> = {};
 
-    constructor(db: sqlite3.Database) {
+    constructor(db: SupabaseDB) {
       this.db = db;
       this.init();
     }
@@ -789,7 +790,7 @@ async function startServer() {
     streamer.start([
       "USDARS-OTCq", "GBPUSD-OTCq", "EURUSD-OTCq", "USDBDT-OTCq", "AUDNZD-OTCq",
       "GBPNZD-OTCq", "NZDCAD-OTCq", "USDEGP-OTCq", "USDPHP-OTCq", "NZDCHF-OTCq",
-      "CADCHF-OTCq", "USDIDR-OTCq", "USDINR-OTCq", "USDBRL-OTCq", "USDPKR-OTCq",
+      "CADCHF-OTCq", "USDIDR-OTCq", "USDINR-OTCq", "BRLUSD-OTCq", "USDPKR-OTCq",
       "USDMXN-OTCq", "USDCOP-OTCq", "USDDZD-OTCq", "USDNGN-OTCq", "EURNZD-OTCq",
       "NZDUSD-OTCq", "USDZAR-OTCq"
     ]);

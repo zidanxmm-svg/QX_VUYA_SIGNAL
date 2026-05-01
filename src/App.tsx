@@ -72,7 +72,7 @@ const ASSETS: AssetConfig[] = [
   { symbol: 'CADCHF-OTCq', name: 'CAD/CHF', type: 'OTC', isLive: true, isSignalEnabled: true },
   { symbol: 'USDIDR-OTCq', name: 'USD/IDR', type: 'OTC', isLive: true, isSignalEnabled: true },
   { symbol: 'USDINR-OTCq', name: 'USD/INR', type: 'OTC', isLive: true, isSignalEnabled: true },
-  { symbol: 'USDBRL-OTCq', name: 'USD/BRL', type: 'OTC', isLive: true, isSignalEnabled: true },
+  { symbol: 'BRLUSD-OTCq', name: 'USD/BRL', type: 'OTC', isLive: true, isSignalEnabled: true },
   { symbol: 'USDPKR-OTCq', name: 'USD/PKR', type: 'OTC', isLive: true, isSignalEnabled: true },
   { symbol: 'USDMXN-OTCq', name: 'USD/MXN', type: 'OTC', isLive: true, isSignalEnabled: true },
   { symbol: 'USDCOP-OTCq', name: 'USD/COP', type: 'OTC', isLive: true, isSignalEnabled: true },
