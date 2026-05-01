@@ -11,9 +11,25 @@ export class SupabaseDB {
     try {
       if (sql.trim().toUpperCase().startsWith("INSERT") && sql.includes("settings")) {
           // INSERT INTO settings (id, data) VALUES (?, ?)
-          await supabase.from('settings').upsert({ id: params[0], data: params[1] });
+          let dataToUpsert = params[1];
+          if (typeof dataToUpsert === "string") {
+            try {
+              dataToUpsert = JSON.parse(dataToUpsert);
+            } catch (e) {
+              console.warn("Failed to parse data as JSON, keeping as string", e);
+            }
+          }
+          await supabase.from('settings').upsert({ id: params[0], data: dataToUpsert });
       } else if (sql.trim().toUpperCase().startsWith("UPDATE") && sql.includes("settings")) {
-          await supabase.from('settings').update({ data: params[0] }).eq('id', 'global');
+          let dataToUpdate = params[0];
+          if (typeof dataToUpdate === "string") {
+            try {
+              dataToUpdate = JSON.parse(dataToUpdate);
+            } catch (e) {
+              console.warn("Failed to parse data as JSON, keeping as string", e);
+            }
+          }
+          await supabase.from('settings').update({ data: dataToUpdate }).eq('id', 'global');
       }
       if (callback) callback(null);
     } catch (err: any) {

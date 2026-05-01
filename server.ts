@@ -243,8 +243,16 @@ async function startServer() {
     async init() {
       this.db.get(`SELECT data FROM settings WHERE id = 'global'`, (err, row: any) => {
         if (err || !row) return;
-        const settings = JSON.parse(row.data);
-        if (settings.botToken) {
+        console.log("[TELEGRAM] Settings row:", row);
+        let settings;
+        if (typeof row.data === 'string') {
+          settings = JSON.parse(row.data);
+        } else {
+          settings = row.data;
+        }
+        
+        console.log("[TELEGRAM] Loaded settings:", settings);
+        if (settings && settings.botToken) {
           this.startBot(settings.botToken);
         }
       });
