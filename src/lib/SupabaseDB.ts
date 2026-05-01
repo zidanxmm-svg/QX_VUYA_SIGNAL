@@ -11,7 +11,17 @@ export class SupabaseDB {
     try {
       if (sql.trim().toUpperCase().startsWith("INSERT") && sql.includes("settings")) {
           // INSERT INTO settings (id, data) VALUES (?, ?)
-          let dataToUpsert = params[1];
+          let id, dataToUpsert;
+          if (params.length === 1) {
+            // INSERT INTO settings (id, data) VALUES ('global', ?)
+            id = 'global';
+            dataToUpsert = params[0];
+          } else {
+            // INSERT INTO settings (id, data) VALUES (?, ?)
+            id = params[0];
+            dataToUpsert = params[1];
+          }
+
           if (typeof dataToUpsert === "string") {
             try {
               dataToUpsert = JSON.parse(dataToUpsert);
@@ -19,7 +29,11 @@ export class SupabaseDB {
               console.warn("Failed to parse data as JSON, keeping as string", e);
             }
           }
-          await supabase.from('settings').upsert({ id: params[0], data: dataToUpsert });
+          console.log("[SupabaseDB] Upserting to settings:", { id, data: dataToUpsert }, "Params:", params);
+          if (typeof id !== "string") {
+            console.error("[SupabaseDB] Invalid ID type:", typeof id, id);
+          }
+          await supabase.from('settings').upsert({ id: id, data: dataToUpsert });
       } else if (sql.trim().toUpperCase().startsWith("UPDATE") && sql.includes("settings")) {
           let dataToUpdate = params[0];
           if (typeof dataToUpdate === "string") {
@@ -29,6 +43,7 @@ export class SupabaseDB {
               console.warn("Failed to parse data as JSON, keeping as string", e);
             }
           }
+          console.log("[SupabaseDB] Updating settings:", { id: 'global', data: dataToUpdate}, "Params:", params);
           await supabase.from('settings').update({ data: dataToUpdate }).eq('id', 'global');
       }
       if (callback) callback(null);

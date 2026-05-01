@@ -78,7 +78,7 @@ async function startServer() {
     db.get(`SELECT COUNT(*) as count FROM settings WHERE id = 'global'`, (err, row: any) => {
       if (!err && row.count === 0) {
         const defaultSettings = {
-          isSystemOn: true,
+          isSystemOn: false,
           isAIOn: true,
           botToken: "",
           minConfidence: 72,
@@ -708,7 +708,7 @@ async function startServer() {
       const baseUrl = process.env.QUOTEX_API_BASE_URL || "https://api.mydomain.com";
       symbols.forEach(symbol => {
         if (this.connections[symbol]) return;
-        const url = baseUrl.includes("?symbols=") 
+        const url = baseUrl.endsWith("?symbols=")
           ? `${baseUrl}${symbol}`
           : `${baseUrl.replace(/\/$/, '')}/api/v1/market/tick-stream?symbols=${symbol}`;
         console.log(`[STREAM] Subscribing to: ${url}`);
@@ -716,10 +716,12 @@ async function startServer() {
           const es = new EventSource(url);
           this.connections[symbol] = es;
           es.onmessage = (event) => this.handleStreamData(event.data);
-          es.addEventListener('tick', (event: any) => this.handleStreamData(event.data));
-          es.onerror = (err) => console.error(`[STREAM] Error for ${symbol}`);
+          es.addEventListener('tick', (event: any) => {
+             this.handleStreamData(event.data);
+          });
+          es.onerror = (err) => console.error(`[STREAM] Error for ${symbol}:`, err);
         } catch (err) {
-          console.error(`[STREAM] Failed to connect to ${symbol}`);
+          console.error(`[STREAM] Failed to connect to stream for ${symbol}:`, err);
         }
       });
     }
@@ -963,7 +965,7 @@ async function startServer() {
       if (err) return res.status(500).json({ error: err.message });
       if (!row) {
         return res.json({
-          isSystemOn: true,
+          isSystemOn: false,
           isAIOn: true,
           botToken: "",
           minConfidence: 72,
