@@ -1,0 +1,6 @@
+{
+  "name": "SignalPro v5 Clone",
+  "description": "Real-time trading signal generator and candle chart system with 30-day history and background processing.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
