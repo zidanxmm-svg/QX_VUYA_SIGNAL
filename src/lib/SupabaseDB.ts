@@ -23,6 +23,32 @@ export class SupabaseDB {
            const [id, symbol, direction, entryTime, expiryTime, strategy, confidence] = params;
            const { error } = await supabase.from('signals').insert({ id, symbol, direction, entryTime, expiryTime, strategy, confidence });
            if (error) throw error;
+      } else if (sql.includes("INSERT OR REPLACE INTO telegram_chats")) {
+          const [id, chatId, name, permissions] = params;
+          const { error } = await supabase.from('telegram_chats').upsert({ id, chatId, name, permissions: typeof permissions === 'string' ? JSON.parse(permissions) : permissions });
+          if (error) throw error;
+      } else if (sql.includes("DELETE FROM telegram_chats")) {
+          const { error } = await supabase.from('telegram_chats').delete().eq('id', params[0]);
+          if (error) throw error;
+      } else if (sql.includes("UPDATE telegram_chats SET chatId")) {
+          const [chatId, name, permissions, id] = params;
+          const { error } = await supabase.from('telegram_chats').update({ chatId, name, permissions: typeof permissions === 'string' ? JSON.parse(permissions) : permissions }).eq('id', id);
+          if (error) throw error;
+      } else if (sql.includes("INSERT OR REPLACE INTO bot_sources")) {
+          const [id, chatId, name, permissions] = params;
+          const { error } = await supabase.from('bot_sources').upsert({ id, chatId, name, permissions: typeof permissions === 'string' ? JSON.parse(permissions) : permissions });
+          if (error) throw error;
+      } else if (sql.includes("INSERT INTO bot_sources")) {
+          const [id, chatId, name, permissions] = params;
+          const { error } = await supabase.from('bot_sources').insert({ id, chatId, name, permissions: typeof permissions === 'string' ? JSON.parse(permissions) : permissions });
+          if (error) throw error;
+      } else if (sql.includes("UPDATE bot_sources SET chatId")) {
+          const [chatId, name, permissions, id] = params;
+          const { error } = await supabase.from('bot_sources').update({ chatId, name, permissions: typeof permissions === 'string' ? JSON.parse(permissions) : permissions }).eq('id', id);
+          if (error) throw error;
+      } else if (sql.includes("DELETE FROM bot_sources")) {
+          const { error } = await supabase.from('bot_sources').delete().eq('id', params[0]);
+          if (error) throw error;
       } else if (sql.trim().toUpperCase().startsWith("INSERT") && sql.includes("settings")) {
           let id, dataToUpsert;
           if (params.length === 1) {
@@ -104,7 +130,15 @@ export class SupabaseDB {
     if (!callback) return;
     
     try {
-        if (sql.includes("FROM candles WHERE symbol = ?")) {
+        if (sql.includes("FROM telegram_chats")) {
+            const { data, error } = await supabase.from('telegram_chats').select('*');
+            if (error) throw error;
+            callback(null, data);
+        } else if (sql.includes("FROM bot_sources")) {
+            const { data, error } = await supabase.from('bot_sources').select('*');
+            if (error) throw error;
+            callback(null, data);
+        } else if (sql.includes("FROM candles WHERE symbol = ?")) {
             const { data, error } = await supabase.from('candles').select('*').eq('symbol', params[0]).order('timestamp', { ascending: false }).limit(params[1]);
             if (error) throw error;
             callback(null, data);

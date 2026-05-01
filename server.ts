@@ -278,6 +278,7 @@ async function startServer() {
     startBot(token: string) {
       if (this.bot) {
         this.bot.stopPolling();
+        this.bot.close();
       }
 
       console.log("[TELEGRAM] Starting bot polling...");
@@ -325,41 +326,54 @@ async function startServer() {
       });
 
       this.bot.on('message', (msg) => {
-        if (!msg.text) return;
-        const text = msg.text;
-
-        if (text === "🎯 Active Signals") {
-          this.sendMessageWithCredit(msg.chat.id, "🔍 Fetching active signals from server...");
-        } else if (text === "📊 Live Stats") {
-          this.sendMessageWithCredit(msg.chat.id, "📈 *Trading Stats Today:*\n\n✅ Wins: 34\n❌ Loss: 36\n🔥 Accuracy: 48.5%\n\n_Server is stable._");
-        } else if (text === "📅 Future Signals") {
-          const nowTimestamp = Math.floor(Date.now() / 1000);
-          this.db.all(`SELECT * FROM future_signals WHERE timestamp > ? ORDER BY timestamp ASC LIMIT 15`, [nowTimestamp], (err, rows: any[]) => {
-             if (err || !rows || rows.length === 0) {
-               this.sendMessageWithCredit(msg.chat.id, "📭 No upcoming future signals scheduled.");
-               return;
-             }
-             let response = "📅 *Upcoming Future Signals:*\n\n";
-             rows.forEach(r => {
-               response += `• ${r.time} - ${r.symbol} - *${r.direction}*\n`;
-             });
-             this.sendMessageWithCredit(msg.chat.id, response);
-          });
-        } else if (text === "⚙️ My Profile") {
-          this.sendMessageWithCredit(msg.chat.id, `👤 *User Profile*\n\nID: \`${msg.chat.id}\`\nName: ${msg.from?.first_name}\nStatus: Authorized Bot Source`);
-        } else if (text === "⚡️ Powered by ZidanX") {
-          this.sendMessageWithCredit(msg.chat.id, `🚀 *SignalPro v5*\nDeveloped and maintained by *ZidanX*.\nYour reliable trading companion.`);
-        } else if (text === "📤 Add Signal List") {
-          this.userStates[msg.chat.id] = 'awaiting_list';
-          this.sendMessageWithCredit(msg.chat.id, "📝 *Send your signal list now.*\n\n*Format 1:* `TIME ASSET DIRECTION`\nExample:\n`14:30 EUR/USD-OTC CALL`\n\n*Format 2:* `M1;ASSET;TIME;DIRECTION`\nExample:\n`M1;USDIDR-OTC;23:28;CALL`");
-        } else if (!text.startsWith('/')) {
-          if (this.userStates[msg.chat.id] === 'awaiting_list') {
-             this.processIncomingMessage(msg);
-             delete this.userStates[msg.chat.id];
-          } else {
-             this.processIncomingMessage(msg);
+        const chatId = msg.chat.id.toString();
+        this.db.get(`SELECT * FROM bot_sources WHERE chatId = ?`, [chatId], (err, source: any) => {
+          if (err || !source) {
+             this.sendMessageWithCredit(msg.chat.id, "❌ *Access Denied*\n\nআপনার এই Telegram চ্যাট আইডিটি অনুমোদিত বট সোর্সে নেই।");
+             return;
           }
-        }
+          const permissions = JSON.parse(source.permissions || '{}');
+
+          if (!msg.text) return;
+          const text = msg.text;
+
+          if (text === "🎯 Active Signals") {
+            if (!permissions.signalsMenu) return this.sendMessageWithCredit(msg.chat.id, "❌ আপনি এই মেনু ব্যবহারের অনুমতি পাননি।");
+            this.sendMessageWithCredit(msg.chat.id, "🔍 Fetching active signals from server...");
+          } else if (text === "📊 Live Stats") {
+            if (!permissions.statsMenu) return this.sendMessageWithCredit(msg.chat.id, "❌ আপনি এই মেনু ব্যবহারের অনুমতি পাননি।");
+            this.sendMessageWithCredit(msg.chat.id, "📈 *Trading Stats Today:*\n\n✅ Wins: 34\n❌ Loss: 36\n🔥 Accuracy: 48.5%\n\n_Server is stable._");
+          } else if (text === "📅 Future Signals") {
+            if (!permissions.futureMenu) return this.sendMessageWithCredit(msg.chat.id, "❌ আপনি এই মেনু ব্যবহারের অনুমতি পাননি।");
+            const nowTimestamp = Math.floor(Date.now() / 1000);
+            this.db.all(`SELECT * FROM future_signals WHERE timestamp > ? ORDER BY timestamp ASC LIMIT 15`, [nowTimestamp], (err, rows: any[]) => {
+               if (err || !rows || rows.length === 0) {
+                 this.sendMessageWithCredit(msg.chat.id, "📭 No upcoming future signals scheduled.");
+                 return;
+               }
+               let response = "📅 *Upcoming Future Signals:*\n\n";
+               rows.forEach(r => {
+                 response += `• ${r.time} - ${r.symbol} - *${r.direction}*\n`;
+               });
+               this.sendMessageWithCredit(msg.chat.id, response);
+            });
+          } else if (text === "⚙️ My Profile") {
+            this.sendMessageWithCredit(msg.chat.id, `👤 *User Profile*\n\nID: \`${msg.chat.id}\`\nName: ${msg.from?.first_name}\nStatus: Authorized Bot Source`);
+          } else if (text === "⚡️ Powered by ZidanX") {
+            this.sendMessageWithCredit(msg.chat.id, `🚀 *SignalPro v5*\nDeveloped and maintained by *ZidanX*.\nYour reliable trading companion.`);
+          } else if (text === "📤 Add Signal List") {
+            if (!permissions.addListMenu) return this.sendMessageWithCredit(msg.chat.id, "❌ আপনি এই মেনু ব্যবহারের অনুমতি পাননি।");
+            this.userStates[msg.chat.id] = 'awaiting_list';
+            this.sendMessageWithCredit(msg.chat.id, "📝 *Send your signal list now.*\n\n*Format 1:* `TIME ASSET DIRECTION`\nExample:\n`14:30 EUR/USD-OTC CALL`\n\n*Format 2:* `M1;ASSET;TIME;DIRECTION`\nExample:\n`M1;USDIDR-OTC;23:28;CALL`");
+          } else if (!text.startsWith('/')) {
+            if (this.userStates[msg.chat.id] === 'awaiting_list') {
+               this.processIncomingMessage(msg);
+               delete this.userStates[msg.chat.id];
+            } else {
+               this.processIncomingMessage(msg);
+            }
+          }
+        });
       });
 
       this.bot.on('polling_error', (error) => {

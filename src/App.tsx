@@ -265,7 +265,12 @@ export default function App() {
     setNewSource({
       chatId: source.chatId,
       name: source.name,
-      permissions: source.permissions
+      permissions: {
+        signalsMenu: !!source.permissions?.signalsMenu,
+        statsMenu: !!source.permissions?.statsMenu,
+        futureMenu: !!source.permissions?.futureMenu,
+        addListMenu: !!source.permissions?.addListMenu
+      }
     });
     // Scroll to form
     const formElement = document.getElementById('bot-source-form');
