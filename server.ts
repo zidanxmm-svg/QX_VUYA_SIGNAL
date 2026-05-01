@@ -87,7 +87,7 @@ async function startServer() {
       if (needsReset) {
         console.log("[INIT] Initializing or resetting settings to default");
         const defaultSettings = {
-          isSystemOn: false,
+          isSystemOn: true,
           isAIOn: true,
           botToken: "",
           minConfidence: 72,
@@ -99,6 +99,14 @@ async function startServer() {
           minMatchThreshold: 2
         };
         db.run(`INSERT OR REPLACE INTO settings (id, data) VALUES ('global', ?)`, [JSON.stringify(defaultSettings)]);
+      } else if (row && row.data) {
+        // Migrate existing settings: ensure isSystemOn is true if initially false or undefined
+        let data = JSON.parse(row.data);
+        if (data.isSystemOn === false) {
+           data.isSystemOn = true;
+           db.run(`UPDATE settings SET data = ? WHERE id = 'global'`, [JSON.stringify(data)]);
+           console.log("[INIT] Migrated isSystemOn to true");
+        }
       }
     });
 

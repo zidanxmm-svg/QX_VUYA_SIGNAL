@@ -45,6 +45,12 @@ export class SupabaseDB {
           if (typeof id !== "string") {
             console.error("[SupabaseDB] Invalid ID type:", typeof id, id);
           }
+          // Prevent saving error messages to settings
+          if (typeof dataToUpsert === 'object' && dataToUpsert !== null && 'error' in dataToUpsert) {
+            console.warn("[SupabaseDB] Ignoring upsert with error data:", dataToUpsert);
+            return;
+          }
+
           await supabase.from('settings').upsert({ id: id, data: typeof dataToUpsert === 'object' ? JSON.stringify(dataToUpsert) : dataToUpsert });
       } else if (sql.trim().toUpperCase().startsWith("UPDATE") && sql.includes("settings")) {
           let dataToUpdate = params[0];
@@ -55,6 +61,11 @@ export class SupabaseDB {
               console.warn("Failed to parse data as JSON, wrapping in an object", e);
               dataToUpdate = { value: dataToUpdate };
             }
+          }
+          // Prevent saving error messages to settings
+          if (typeof dataToUpdate === 'object' && dataToUpdate !== null && 'error' in dataToUpdate) {
+            console.warn("[SupabaseDB] Ignoring update with error data:", dataToUpdate);
+            return;
           }
           console.log("[SupabaseDB] Updating settings:", { id: 'global', data: dataToUpdate}, "Params:", params);
           await supabase.from('settings').update({ data: typeof dataToUpdate === 'object' ? JSON.stringify(dataToUpdate) : dataToUpdate }).eq('id', 'global');

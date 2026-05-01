@@ -1,1 +1,7 @@
 @import "tailwindcss";
+
+/* Hide TradingView logo */
+.tv-lightweight-charts-branding,
+.lightweight-charts-container-branding {
+    display: none !important;
+}
