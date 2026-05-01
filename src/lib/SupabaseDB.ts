@@ -26,25 +26,27 @@ export class SupabaseDB {
             try {
               dataToUpsert = JSON.parse(dataToUpsert);
             } catch (e) {
-              console.warn("Failed to parse data as JSON, keeping as string", e);
+              console.warn("Failed to parse data as JSON, wrapping in an object", e);
+              dataToUpsert = { value: dataToUpsert };
             }
           }
           console.log("[SupabaseDB] Upserting to settings:", { id, data: dataToUpsert }, "Params:", params);
           if (typeof id !== "string") {
             console.error("[SupabaseDB] Invalid ID type:", typeof id, id);
           }
-          await supabase.from('settings').upsert({ id: id, data: dataToUpsert });
+          await supabase.from('settings').upsert({ id: id, data: typeof dataToUpsert === 'object' ? JSON.stringify(dataToUpsert) : dataToUpsert });
       } else if (sql.trim().toUpperCase().startsWith("UPDATE") && sql.includes("settings")) {
           let dataToUpdate = params[0];
           if (typeof dataToUpdate === "string") {
             try {
               dataToUpdate = JSON.parse(dataToUpdate);
             } catch (e) {
-              console.warn("Failed to parse data as JSON, keeping as string", e);
+              console.warn("Failed to parse data as JSON, wrapping in an object", e);
+              dataToUpdate = { value: dataToUpdate };
             }
           }
           console.log("[SupabaseDB] Updating settings:", { id: 'global', data: dataToUpdate}, "Params:", params);
-          await supabase.from('settings').update({ data: dataToUpdate }).eq('id', 'global');
+          await supabase.from('settings').update({ data: typeof dataToUpdate === 'object' ? JSON.stringify(dataToUpdate) : dataToUpdate }).eq('id', 'global');
       }
       if (callback) callback(null);
     } catch (err: any) {

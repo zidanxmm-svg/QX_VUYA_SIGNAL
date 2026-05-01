@@ -76,7 +76,8 @@ async function startServer() {
 
     // Pre-populate settings if empty
     db.get(`SELECT COUNT(*) as count FROM settings WHERE id = 'global'`, (err, row: any) => {
-      if (!err && row.count === 0) {
+      if (err || row.count === 0 || (row.count > 0 && typeof row.data === 'string' && row.data.includes("error"))) {
+        console.log("[INIT] Resetting settings to default due to invalid data");
         const defaultSettings = {
           isSystemOn: false,
           isAIOn: true,
@@ -89,7 +90,7 @@ async function startServer() {
           customMessage: "",
           minMatchThreshold: 2
         };
-        db.run(`INSERT INTO settings (id, data) VALUES ('global', ?)`, [JSON.stringify(defaultSettings)]);
+        db.run(`INSERT OR REPLACE INTO settings (id, data) VALUES ('global', ?)`, [JSON.stringify(defaultSettings)]);
       }
     });
 
@@ -706,24 +707,32 @@ async function startServer() {
 
     start(symbols: string[]) {
       const baseUrl = process.env.QUOTEX_API_BASE_URL || "https://api.mydomain.com";
-      symbols.forEach(symbol => {
-        if (this.connections[symbol]) return;
-        const url = baseUrl.endsWith("?symbols=")
-          ? `${baseUrl}${symbol}`
-          : `${baseUrl.replace(/\/$/, '')}/api/v1/market/tick-stream?symbols=${symbol}`;
-        console.log(`[STREAM] Subscribing to: ${url}`);
-        try {
-          const es = new EventSource(url);
-          this.connections[symbol] = es;
-          es.onmessage = (event) => this.handleStreamData(event.data);
-          es.addEventListener('tick', (event: any) => {
-             this.handleStreamData(event.data);
-          });
-          es.onerror = (err) => console.error(`[STREAM] Error for ${symbol}:`, err);
-        } catch (err) {
-          console.error(`[STREAM] Failed to connect to stream for ${symbol}:`, err);
-        }
-      });
+      
+      // Combine all symbols into one request
+      const symbolsParam = symbols.join(',');
+      const url = baseUrl.includes("?symbols=")
+        ? `${baseUrl}${symbolsParam}`
+        : `${baseUrl.replace(/\/$/, '')}/api/v1/market/tick-stream?symbols=${symbolsParam}`;
+      
+      console.log(`[STREAM] Subscribing to combined stream: ${url}`);
+      try {
+        const es = new EventSource(url);
+        this.connections["all"] = es; // Store under a single key
+        
+        es.onmessage = (event) => {
+          try {
+            this.handleStreamData(event.data);
+          } catch(e) {}
+        };
+        
+        es.addEventListener('tick', (event: any) => {
+          this.handleStreamData(event.data);
+        });
+        
+        es.onerror = (err) => console.error(`[STREAM] Error for aggregated stream:`, err);
+      } catch (err) {
+        console.error(`[STREAM] Failed to connect to aggregated stream:`, err);
+      }
     }
 
     private handleStreamData(data: string) {
