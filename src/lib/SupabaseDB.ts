@@ -34,14 +34,20 @@ export class SupabaseDB {
     }
   }
 
-  get(sql: string, params: any[] = [], callback: (err: any, row: any) => void) {
+  get(sql: string, a?: any[] | ((err: any, row: any) => void), b?: (err: any, row: any) => void) {
+    const params = Array.isArray(a) ? a : [];
+    const callback = typeof a === 'function' ? a : b;
     console.log("[SupabaseDB] Get:", sql, params);
+    if (!callback) return;
     // Needs implementation - high complexity for generic SQL
     callback(null, {}); 
   }
 
-  all(sql: string, params: any[] = [], callback: (err: any, rows: any[]) => void) {
+  all(sql: string, a?: any[] | ((err: any, rows: any[]) => void), b?: (err: any, rows: any[]) => void) {
+    const params = Array.isArray(a) ? a : [];
+    const callback = typeof a === 'function' ? a : b;
     console.log("[SupabaseDB] All:", sql, params);
+    if (!callback) return;
     // Needs implementation - high complexity for generic SQL
     callback(null, []);
   }
