@@ -295,7 +295,7 @@ export default function App() {
       if (editingChatId) {
         result = await updateTelegramChat(editingChatId, newChat);
       } else {
-        result = await saveTelegramChat(newChat);
+        result = await saveTelegramChat({ ...newChat, id: `chat_${Date.now()}` });
       }
 
       if (result.success) {
