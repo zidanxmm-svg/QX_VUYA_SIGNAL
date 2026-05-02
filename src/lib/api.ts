@@ -19,11 +19,11 @@ export async function fetchSignals(): Promise<Signal[]> {
   return handleResponse(res);
 }
 
-export async function uploadFutureSignals(text: string) {
+export async function uploadFutureSignals(text: string, sourceName: string = "Web UI") {
   const res = await fetch("/api/future-signals/upload", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ text, sourceName }),
   });
   return res.json();
 }

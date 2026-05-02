@@ -291,11 +291,22 @@ export default function App() {
         return;
       }
 
+      let chatIdFix = newChat.chatId.trim();
+      if (!chatIdFix.startsWith('-')) {
+         if (chatIdFix.startsWith('100')) {
+          chatIdFix = `-${chatIdFix}`;
+         } else if (chatIdFix.length >= 10) {
+          chatIdFix = `-100${chatIdFix}`;
+         }
+      }
+
+      const chatToSave = { ...newChat, chatId: chatIdFix };
+
       let result;
       if (editingChatId) {
-        result = await updateTelegramChat(editingChatId, newChat);
+        result = await updateTelegramChat(editingChatId, chatToSave);
       } else {
-        result = await saveTelegramChat({ ...newChat, id: `chat_${Date.now()}` });
+        result = await saveTelegramChat(chatToSave);
       }
 
       if (result.success) {
@@ -408,7 +419,7 @@ export default function App() {
 
   useEffect(() => {
     if (view === 'settings' && isLoggedIn) {
-      fetchAuthSettings().then(setAuthSettings).catch(console.error);
+      fetchAuthSettings().then(data => data && setAuthSettings(data)).catch(console.error);
     }
   }, [view, isLoggedIn]);
 
@@ -1651,11 +1662,4 @@ const telegram_chats_mock: TelegramChat[] = [
     }
   }
 ];
-
-
-
-
-
-
-
 

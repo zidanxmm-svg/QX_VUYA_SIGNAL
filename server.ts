@@ -275,16 +275,23 @@ async function startServer() {
       });
     }
 
-    startBot(token: string) {
+    async startBot(token: string) {
       if (this.bot) {
-        this.bot.stopPolling();
-        this.bot.close();
+        try {
+          await this.bot.stopPolling();
+          // bot.close() is not always available or needed if stopPolling works
+        } catch (e) {}
+        this.bot = null;
       }
 
-      console.log("[TELEGRAM] Starting bot polling...");
-      this.bot = new TelegramBot(token, { polling: true });
+      // Small delay to ensure old polling session is closed on Telegram's end
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
-      const getMainMenu = (permissions: any) => {
+      console.log("[TELEGRAM] Starting bot polling...");
+      try {
+        this.bot = new TelegramBot(token, { polling: true });
+
+        const getMainMenu = (permissions: any) => {
         const keyboard: any[][] = [];
         const row1: any[] = [];
         if (permissions?.signalsMenu) row1.push({ text: "🎯 Active Signals" });
@@ -311,25 +318,11 @@ async function startServer() {
         };
       };
 
-      this.bot.onText(/\/start/, (msg) => {
-        const chatId = msg.chat.id.toString();
-        const firstName = msg.from?.first_name || "Trader";
-        
-        this.db.get(`SELECT * FROM bot_sources WHERE chatId = ?`, [chatId], (err, source: any) => {
-          const permissions = source ? JSON.parse(source.permissions) : { signalsMenu: true, statsMenu: true, futureMenu: true, addListMenu: true };
-          
-          this.sendMessageWithCredit(msg.chat.id, 
-            `🚀 *Welcome back, ${firstName}!* \n\nI am connected to the SignalPro v5 Server. You can use the menu below to interact with the system. \n\nYour Chat ID: \`${chatId}\``, 
-            { ...getMainMenu(permissions) }
-          );
-        });
-      });
-
       this.bot.on('message', (msg) => {
         const chatId = msg.chat.id.toString();
         this.db.get(`SELECT * FROM bot_sources WHERE chatId = ?`, [chatId], (err, source: any) => {
           if (err || !source) {
-             this.sendMessageWithCredit(msg.chat.id, "❌ *Access Denied*\n\nআপনার এই Telegram চ্যাট আইডিটি অনুমোদিত বট সোর্সে নেই।");
+             this.sendMessageWithCredit(msg.chat.id, "❌ *Access Denied*\n\nআপনার এই Telegram চ্যাট আইডিটি অনুমোদিত বট সোর্সে নেই।\n\nPlease contact admin and provide your Chat ID: `" + chatId + "`");
              return;
           }
           const permissions = JSON.parse(source.permissions || '{}');
@@ -337,7 +330,13 @@ async function startServer() {
           if (!msg.text) return;
           const text = msg.text;
 
-          if (text === "🎯 Active Signals") {
+          if (text === "/start") {
+            const firstName = msg.from?.first_name || "Trader";
+            this.sendMessageWithCredit(msg.chat.id, 
+              `🚀 *Welcome back, ${firstName}!* \n\nI am connected to the SignalPro v5 Server. You can use the menu below to interact with the system. \n\nYour Chat ID: \`${chatId}\``, 
+              { ...getMainMenu(permissions) }
+            );
+          } else if (text === "🎯 Active Signals") {
             if (!permissions.signalsMenu) return this.sendMessageWithCredit(msg.chat.id, "❌ আপনি এই মেনু ব্যবহারের অনুমতি পাননি।");
             this.sendMessageWithCredit(msg.chat.id, "🔍 Fetching active signals from server...");
           } else if (text === "📊 Live Stats") {
@@ -377,8 +376,16 @@ async function startServer() {
       });
 
       this.bot.on('polling_error', (error) => {
-        console.error("[TELEGRAM] Polling error:", error.message);
+        if (error.message.includes('409 Conflict')) {
+          console.warn("[TELEGRAM] 409 Conflict detected, retrying after delay...");
+          this.bot?.stopPolling();
+        } else {
+          console.error("[TELEGRAM] Polling error:", error.message);
+        }
       });
+      } catch (e: any) {
+        console.error("[TELEGRAM] Failed to start bot:", e.message);
+      }
     }
 
     private async sendMessageWithCredit(chatId: string | number, text: string, options?: any) {
@@ -716,8 +723,8 @@ async function startServer() {
       });
     }
 
-    updateToken(newToken: string) {
-      this.startBot(newToken);
+    async updateToken(newToken: string) {
+      await this.startBot(newToken);
     }
   }
 
@@ -914,11 +921,11 @@ async function startServer() {
   });
 
   app.post("/api/future-signals/upload", async (req, res) => {
-    const { text } = req.body;
+    const { text, sourceName } = req.body;
     if (!text) return res.status(400).json({ error: "No text provided" });
     
     try {
-      const result = await telegramManager.processFutureSignalList(text, "System Dashboard");
+      const result = await telegramManager.processFutureSignalList(text, sourceName || "System Dashboard");
       res.json(result);
     } catch (err: any) {
       console.error("[UPLOAD ERROR]", err);
@@ -941,17 +948,12 @@ async function startServer() {
   });
 
   app.post("/api/telegram-chats", (req, res) => {
-  const { id, chatId, name, permissions } = req.body;
-  const chatUniqueId = id || `chat_${Date.now()}`;
-  db.run(
-    `INSERT OR REPLACE INTO telegram_chats (id, chatId, name, permissions, status) VALUES (?, ?, ?, ?, 'active')`,
-    [chatUniqueId, chatId, name, JSON.stringify(permissions)],
-    (err) => {
+    const { id, chatId, name, permissions } = req.body;
+    db.run(`INSERT OR REPLACE INTO telegram_chats (id, chatId, name, permissions) VALUES (?, ?, ?, ?)`, [id || `chat_${Date.now()}`, chatId, name, JSON.stringify(permissions)], (err) => {
       if (err) return res.status(500).json({ error: err.message });
-      res.json({ success: true, id: chatUniqueId });
-    }
-  );
-});
+      res.json({ success: true });
+    });
+  });
 
   app.delete("/api/telegram-chats/:id", (req, res) => {
     db.run(`DELETE FROM telegram_chats WHERE id = ?`, [req.params.id], (err) => {
@@ -1046,20 +1048,17 @@ async function startServer() {
   });
 
   app.post("/api/bot-sources", (req, res) => {
-  const { chatId, name, permissions } = req.body;
-  const id = `source_${Date.now()}`;
-  db.run(
-    `INSERT OR REPLACE INTO bot_sources (id, chatId, name, permissions) VALUES (?, ?, ?, ?)`,
-    [id, chatId, name, JSON.stringify(permissions || {})],
-    (err) => {
-      if (err) {
-        console.error("Bot source insert error:", err.message);
-        return res.status(500).json({ error: err.message });
+    const { chatId, name, permissions } = req.body;
+    const id = `source_${Date.now()}`;
+    db.run(
+      `INSERT INTO bot_sources (id, chatId, name, permissions) VALUES (?, ?, ?, ?)`,
+      [id, chatId, name, JSON.stringify(permissions || {})],
+      (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true, id });
       }
-      res.json({ success: true, id });
-    }
-  );
-});
+    );
+  });
 
   app.put("/api/bot-sources/:id", (req, res) => {
     const { id } = req.params;
