@@ -38,14 +38,23 @@ export class SupabaseDB {
           const [id, chatId, name, permissions] = params;
           const { error } = await supabase.from('bot_sources').upsert({ id, chatId, name, permissions: typeof permissions === 'string' ? JSON.parse(permissions) : permissions });
           if (error) throw error;
-      } else if (sql.includes("INSERT INTO bot_sources")) {
-          const [id, chatId, name, permissions] = params;
-          const { error } = await supabase.from('bot_sources').insert({ id, chatId, name, permissions: typeof permissions === 'string' ? JSON.parse(permissions) : permissions });
-          if (error) throw error;
-      } else if (sql.includes("UPDATE bot_sources SET chatId")) {
-          const [chatId, name, permissions, id] = params;
-          const { error } = await supabase.from('bot_sources').update({ chatId, name, permissions: typeof permissions === 'string' ? JSON.parse(permissions) : permissions }).eq('id', id);
-          if (error) throw error;
+      } else if (sql.includes("INSERT OR REPLACE INTO bot_sources") || sql.includes("INSERT INTO bot_sources")) {
+    const [id, chatId, name, permissions] = params;
+    const { error } = await supabase.from('bot_sources').upsert({ 
+        id, 
+        chatId, 
+        name, 
+        permissions: typeof permissions === 'string' ? JSON.parse(permissions) : permissions 
+    });
+    if (error) throw error;
+} else if (sql.includes("UPDATE bot_sources SET chatId")) {
+    const [chatId, name, permissions, id] = params;
+    const { error } = await supabase.from('bot_sources').update({ 
+        chatId, 
+        name, 
+        permissions: typeof permissions === 'string' ? JSON.parse(permissions) : permissions 
+    }).eq('id', id);
+    if (error) throw error;;
       } else if (sql.includes("DELETE FROM bot_sources")) {
           const { error } = await supabase.from('bot_sources').delete().eq('id', params[0]);
           if (error) throw error;
