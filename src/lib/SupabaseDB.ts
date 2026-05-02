@@ -34,27 +34,23 @@ export class SupabaseDB {
           const [chatId, name, permissions, id] = params;
           const { error } = await supabase.from('telegram_chats').update({ chatId, name, permissions: typeof permissions === 'string' ? JSON.parse(permissions) : permissions }).eq('id', id);
           if (error) throw error;
-      } else if (sql.includes("INSERT OR REPLACE INTO bot_sources")) {
-          const [id, chatId, name, permissions] = params;
-          const { error } = await supabase.from('bot_sources').upsert({ id, chatId, name, permissions: typeof permissions === 'string' ? JSON.parse(permissions) : permissions });
-          if (error) throw error;
       } else if (sql.includes("INSERT OR REPLACE INTO bot_sources") || sql.includes("INSERT INTO bot_sources")) {
-    const [id, chatId, name, permissions] = params;
-    const { error } = await supabase.from('bot_sources').upsert({ 
-        id, 
-        chatId, 
-        name, 
-        permissions: typeof permissions === 'string' ? JSON.parse(permissions) : permissions 
-    });
-    if (error) throw error;
-} else if (sql.includes("UPDATE bot_sources SET chatId")) {
-    const [chatId, name, permissions, id] = params;
-    const { error } = await supabase.from('bot_sources').update({ 
-        chatId, 
-        name, 
-        permissions: typeof permissions === 'string' ? JSON.parse(permissions) : permissions 
-    }).eq('id', id);
-    if (error) throw error;;
+          const [id, chatId, name, permissions] = params;
+          const { error } = await supabase.from('bot_sources').upsert({
+              id,
+              chatId,
+              name,
+              permissions: typeof permissions === 'string' ? JSON.parse(permissions) : permissions
+          });
+          if (error) throw error;
+      } else if (sql.includes("UPDATE bot_sources SET chatId")) {
+          const [chatId, name, permissions, id] = params;
+          const { error } = await supabase.from('bot_sources').update({
+              chatId,
+              name,
+              permissions: typeof permissions === 'string' ? JSON.parse(permissions) : permissions
+          }).eq('id', id);
+          if (error) throw error;
       } else if (sql.includes("DELETE FROM bot_sources")) {
           const { error } = await supabase.from('bot_sources').delete().eq('id', params[0]);
           if (error) throw error;
@@ -80,7 +76,6 @@ export class SupabaseDB {
           if (typeof id !== "string") {
             console.error("[SupabaseDB] Invalid ID type:", typeof id, id);
           }
-          // Prevent saving error messages to settings
           if (typeof dataToUpsert === 'object' && dataToUpsert !== null && 'error' in dataToUpsert) {
             console.warn("[SupabaseDB] Ignoring upsert with error data:", dataToUpsert);
             return;
@@ -97,7 +92,6 @@ export class SupabaseDB {
               dataToUpdate = { value: dataToUpdate };
             }
           }
-          // Prevent saving error messages to settings
           if (typeof dataToUpdate === 'object' && dataToUpdate !== null && 'error' in dataToUpdate) {
             console.warn("[SupabaseDB] Ignoring update with error data:", dataToUpdate);
             return;
@@ -116,7 +110,7 @@ export class SupabaseDB {
     const params = Array.isArray(a) ? a : [];
     const callback = typeof a === 'function' ? a : b;
     console.log("[SupabaseDB] Get:", sql, params);
-    
+
     if (!callback) return;
 
     try {
@@ -137,7 +131,7 @@ export class SupabaseDB {
     const callback = typeof a === 'function' ? a : b;
     console.log("[SupabaseDB] All:", sql, params);
     if (!callback) return;
-    
+
     try {
         if (sql.includes("FROM telegram_chats")) {
             const { data, error } = await supabase.from('telegram_chats').select('*');
