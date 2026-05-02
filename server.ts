@@ -941,12 +941,17 @@ async function startServer() {
   });
 
   app.post("/api/telegram-chats", (req, res) => {
-    const { id, chatId, name, permissions } = req.body;
-    db.run(`INSERT OR REPLACE INTO telegram_chats (id, chatId, name, permissions) VALUES (?, ?, ?, ?)`, [id || `chat_${Date.now()}`, chatId, name, JSON.stringify(permissions)], (err) => {
+  const { id, chatId, name, permissions } = req.body;
+  const chatUniqueId = id || `chat_${Date.now()}`;
+  db.run(
+    `INSERT OR REPLACE INTO telegram_chats (id, chatId, name, permissions, status) VALUES (?, ?, ?, ?, 'active')`,
+    [chatUniqueId, chatId, name, JSON.stringify(permissions)],
+    (err) => {
       if (err) return res.status(500).json({ error: err.message });
-      res.json({ success: true });
-    });
-  });
+      res.json({ success: true, id: chatUniqueId });
+    }
+  );
+});
 
   app.delete("/api/telegram-chats/:id", (req, res) => {
     db.run(`DELETE FROM telegram_chats WHERE id = ?`, [req.params.id], (err) => {
