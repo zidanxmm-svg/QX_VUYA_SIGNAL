@@ -1046,17 +1046,20 @@ async function startServer() {
   });
 
   app.post("/api/bot-sources", (req, res) => {
-    const { chatId, name, permissions } = req.body;
-    const id = `source_${Date.now()}`;
-    db.run(
-      `INSERT INTO bot_sources (id, chatId, name, permissions) VALUES (?, ?, ?, ?)`,
-      [id, chatId, name, JSON.stringify(permissions || {})],
-      (err) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ success: true, id });
+  const { chatId, name, permissions } = req.body;
+  const id = `source_${Date.now()}`;
+  db.run(
+    `INSERT OR REPLACE INTO bot_sources (id, chatId, name, permissions) VALUES (?, ?, ?, ?)`,
+    [id, chatId, name, JSON.stringify(permissions || {})],
+    (err) => {
+      if (err) {
+        console.error("Bot source insert error:", err.message);
+        return res.status(500).json({ error: err.message });
       }
-    );
-  });
+      res.json({ success: true, id });
+    }
+  );
+});
 
   app.put("/api/bot-sources/:id", (req, res) => {
     const { id } = req.params;
